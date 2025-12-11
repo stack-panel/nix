@@ -1,14 +1,29 @@
 # secrets/
 
-Secrets management via agenix - team pubkeys, secret definitions, and auto-rekey workflow.
+SOPS-based secrets management - generates `.sops.yaml` and environment-specific secret files.
+
+## Philosophy
+
+**No new commands to learn.** Uses standard SOPS workflow:
+- `sops secrets/dev.yaml` - edit dev secrets
+- `sops exec-env secrets/dev.yaml './my-script.sh'` - run with secrets
+- `git add secrets/*.yaml` - encrypted files safe to commit
 
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `default.nix` | Module entrypoint |
-| `users.nix` | User/team options, secrets.nix generation, rekey workflow |
-| `exec.nix` | secrets-exec, secrets-edit, secrets-list commands |
+| `sops.nix` | SOPS config generation, environment-based access control |
+
+## Generated Files
+
+| File | Purpose |
+|------|---------|
+| `.sops.yaml` | SOPS configuration with AGE keys per environment |
+| `secrets/{dev,staging,production}.yaml` | Environment-specific secrets (encrypted) |
+| `secrets/common.yaml` | Shared secrets across environments |
+| `secrets/.gitignore` | Ignores `*.local.yaml` overrides |
 
 ## Options
 
@@ -17,78 +32,69 @@ stackpanel.secrets = {
   enable = true;
   
   users = {
-    alice = { pubkey = "ssh-ed25519 ..."; admin = true; };
-    bob = { pubkey = "ssh-ed25519 ..."; };
+    alice = { pubkey = "age1..."; admin = true; };
+    bob = { pubkey = "age1..."; };
+    charlie = { pubkey = "age1..."; };
   };
   
-  secrets = {
-    "api-key.age".owners = [ "alice" "bob" ];
-    "db-password.age".owners = [ "alice" ];  # admin-only
-  };
-  
-  rekey = {
-    enable = true;  # GitHub Action to auto-rekey
-    sshKeySecret = "AGENIX_SSH_KEY";
+  environments = {
+    dev = { users = [ "alice" "bob" "charlie" ]; };
+    staging = { users = [ "alice" "bob" ]; };
+    production = { 
+      users = [ "alice" ];
+      extraKeys = [ "age1..." ];  # CI system key
+    };
   };
 };
 ```
 
-## Commands
+## Access Control
 
-### `nix run .#secrets-list`
-List all secrets and their corresponding environment variable names.
-
-```bash
-$ nix run .#secrets-list
-Secrets in secrets:
-  api-key.age -> $API_KEY
-  db-password.age -> $DB_PASSWORD
-```
-
-### `nix run .#secrets-exec -- <command>`
-Run a command with all decrypted secrets loaded as environment variables. Similar to `sops exec-env`.
-
-```bash
-# Run a command with secrets
-$ nix run .#secrets-exec -- ./deploy.sh
-
-# Quick test
-$ nix run .#secrets-exec -- printenv API_KEY
-sk-abc123...
-
-# Start a development server with secrets
-$ nix run .#secrets-exec -- npm run dev
-```
-
-Secret files are converted to env var names:
-- `api-key.age` → `$API_KEY`  
-- `db-password.age` → `$DB_PASSWORD`
-- `stripe.api.key.age` → `$STRIPE_API_KEY`
-
-### `nix run .#secrets-edit <name>`
-Edit or create a secret. Wrapper around `agenix -e`.
-
-```bash
-$ nix run .#secrets-edit api-key
-# Opens $EDITOR with decrypted content
-```
-
-## Generated Files
-
-- `secrets/secrets.nix` - agenix format, lists pubkeys + secret owners
-- `.github/workflows/rekey.yml` - auto-rekey when secrets.nix changes
+- **Admins** (`admin = true`) can decrypt ALL environments
+- **Non-admins** can only decrypt environments they're listed in
+- **extraKeys** for CI systems, servers, etc.
 
 ## Workflow
 
-1. Agent syncs team → writes `.stackpanel/team.nix`
-2. User imports in flake: `users = (import ./.stackpanel/team.nix).users`
-3. `nix run .#generate` creates `secrets/secrets.nix`
-4. User encrypts: `nix run .#secrets-edit api-key`
-5. On push, GitHub Action rekeys if secrets.nix changed
-6. In dev: `nix run .#secrets-exec -- ./start-dev.sh`
+### Setup
 
-## TODO
+1. Team members generate AGE keys: `age-keygen -o ~/.age/key.txt`
+2. Share public keys: `age-keygen -y ~/.age/key.txt`
+3. Agent syncs team → writes `.stackpanel/team.nix`
+4. User configures environments in `flake.nix`
+5. `nix run .#generate` creates `.sops.yaml` + placeholder files
 
-- [ ] Support system keys (CI, servers) separate from user keys
-- [ ] Add secret rotation reminders
-- [ ] Integration with devenv for automatic secret loading
+### Daily Use
+
+```bash
+# Edit secrets
+sops secrets/dev.yaml
+
+# Run with secrets loaded
+sops exec-env secrets/dev.yaml './start-server.sh'
+
+# Local overrides (gitignored)
+sops secrets/dev.local.yaml
+```
+
+### Adding Team Members
+
+1. Get their AGE public key
+2. Add to `stackpanel.secrets.users` in flake.nix
+3. `nix run .#generate`
+4. Re-encrypt: `sops updatekeys secrets/dev.yaml`
+
+## Local Overrides
+
+Create `secrets/{env}.local.yaml` for machine-specific secrets:
+
+```bash
+# Start from existing secrets
+sops -d secrets/dev.yaml > secrets/dev.local.yaml
+sops -e -i secrets/dev.local.yaml
+
+# Use local version
+sops exec-env secrets/dev.local.yaml './start.sh'
+```
+
+Local overrides are gitignored and won't be committed.

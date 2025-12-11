@@ -5,7 +5,6 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     devenv.url = "github:cachix/devenv";
-    agenix.url = "github:ryantm/agenix";
   };
 
   outputs = inputs@{ flake-parts, ... }:
@@ -29,12 +28,16 @@
           secrets = {
             enable = true;
             users = teamData.users;
-            secrets = {
-              "api-key.age".owners = [ "alice" "bob" ];
-              "db-password.age".owners = [ "alice" ];
-              "stripe-key.age".owners = [ "alice" "bob" "charlie" ];
+            
+            # Environment-specific access control
+            environments = {
+              dev = { users = [ "alice" "bob" "charlie" ]; };
+              staging = { users = [ "alice" "bob" ]; };
+              production = { 
+                users = [ "alice" ];
+                # extraKeys = [ "age1..." ];  # CI system key
+              };
             };
-            rekey.enable = true;
           };
           
           # CI

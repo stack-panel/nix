@@ -5,17 +5,17 @@
   users = {
     alice = {
       github = "alice";
-      pubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample1AliceKey";
+      pubkey = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p";
       admin = true;
     };
     bob = {
       github = "bobsmith";
-      pubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample2BobKey";
+      pubkey = "age1lzd99v4lnuqzs44lfjv9xp4e9k5jnmq4gfqzjq9z7f0fxz5emzrsy3v2zj";
       admin = false;
     };
     charlie = {
       github = "charlie-dev";
-      pubkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample3CharlieKey";
+      pubkey = "age1m8ll9g9vfrqnf5m2pqkxhpvf3n6p4z7qg6f8yj8zhv3q9k2yjxcs5e6q8z";
       admin = false;
     };
   };
