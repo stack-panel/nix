@@ -69,7 +69,7 @@
 # 1. User opens localhost:1111 (agent UI)
 # 2. Clicks "Install Agenix"
 # 3. Agent prompts to connect GitHub
-# 4. Agent fetches team from github.com/orgs/acme-corp/members
+# 4. Agent fetches team from github.com/orgs/example-org/members
 # 5. Agent fetches SSH keys from github.com/<user>.keys for each member
 # 6. Agent writes .stackpanel/secrets.nix with user data
 # 7. Agent enables stackpanel.secrets in flake.nix (or user does manually)

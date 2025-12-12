@@ -1,0 +1,35 @@
+# Nix build results
+result
+result-*
+.direnv/
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.*.swp
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Local development
+*.log
+*.local
+test-output.txt
+
+# Temporary files
+/tmp/
+*.tmp
+*.temp
+
+# Environment files with actual values
+.env.local
+.env.*.local

@@ -22,7 +22,7 @@ stackpanel.network = {
 
   dns = {
     enable = true;
-    domain = "internal.acme.com";
+    domain = "internal.example.com";
     provider = "coredns";  # or "caddy"
   };
 
