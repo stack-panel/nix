@@ -38,6 +38,48 @@
                 # extraKeys = [ "age1..." ];  # CI system key
               };
             };
+            
+            # Define secrets schema - generates typed modules
+            schema = {
+              # Sensitive (server-only) secrets
+              DATABASE_URL = { 
+                required = true; 
+                sensitive = true; 
+                description = "PostgreSQL connection string"; 
+              };
+              STRIPE_SECRET_KEY = { 
+                required = true; 
+                sensitive = true; 
+                description = "Stripe API secret key"; 
+              };
+              OPENAI_API_KEY = { 
+                required = false;  # Optional - nullable in generated types
+                sensitive = true; 
+                description = "OpenAI API key for AI features"; 
+              };
+              
+              # Public (client-safe) secrets - will be PUBLIC_* in env
+              STRIPE_PUBLISHABLE_KEY = { 
+                required = true; 
+                sensitive = false; 
+                description = "Stripe publishable key (safe for client)"; 
+              };
+              ANALYTICS_ID = { 
+                required = false; 
+                sensitive = false; 
+                description = "Google Analytics ID"; 
+              };
+            };
+            
+            # Code generation options
+            codegen = {
+              typescript = {
+                enable = true;
+                path = "packages/env/src/env.ts";
+              };
+              python.enable = false;
+              go.enable = false;
+            };
           };
           
           # CI
