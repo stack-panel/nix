@@ -13,22 +13,22 @@ Container image generation - Dockerfile, docker-compose, and registry configurat
 ```nix
 stackpanel.container = {
   enable = true;
-  
+
   # Auto-detect or specify
   baseImage = "node:20-slim";  # or auto-detect from project
-  
+
   # Multi-stage build
   stages = {
     build = { /* ... */ };
     runtime = { /* ... */ };
   };
-  
+
   # Or use Nix-based images
   nixBased = {
     enable = true;
     # Uses dockerTools.buildImage
   };
-  
+
   # Docker compose for local dev
   compose = {
     enable = true;
@@ -48,6 +48,7 @@ stackpanel.container = {
 
 ## TODO
 
+- [ ] nix2container generation
 - [ ] Auto-detect project type (Node, Go, Python, etc.)
 - [ ] Generate optimized Dockerfile per stack
 - [ ] Docker compose generation

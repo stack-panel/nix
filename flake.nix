@@ -14,8 +14,8 @@
         ./modules
       ];
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
-      
-      perSystem = { config, self', inputs', pkgs, system, ... }: 
+
+      perSystem = { config, self', inputs', pkgs, system, ... }:
       let
         # Import team data from .stackpanel/ (written by agent)
         teamData = import ./.stackpanel/team.nix;
@@ -28,49 +28,49 @@
           secrets = {
             enable = true;
             users = teamData.users;
-            
+
             # Environment-specific access control
             environments = {
               dev = { users = [ "alice" "bob" "charlie" ]; };
               staging = { users = [ "alice" "bob" ]; };
-              production = { 
+              production = {
                 users = [ "alice" ];
                 # extraKeys = [ "age1..." ];  # CI system key
               };
             };
-            
+
             # Define secrets schema - generates typed modules
             schema = {
               # Sensitive (server-only) secrets
-              DATABASE_URL = { 
-                required = true; 
-                sensitive = true; 
-                description = "PostgreSQL connection string"; 
+              DATABASE_URL = {
+                required = true;
+                sensitive = true;
+                description = "PostgreSQL connection string";
               };
-              STRIPE_SECRET_KEY = { 
-                required = true; 
-                sensitive = true; 
-                description = "Stripe API secret key"; 
+              STRIPE_SECRET_KEY = {
+                required = true;
+                sensitive = true;
+                description = "Stripe API secret key";
               };
-              OPENAI_API_KEY = { 
+              OPENAI_API_KEY = {
                 required = false;  # Optional - nullable in generated types
-                sensitive = true; 
-                description = "OpenAI API key for AI features"; 
+                sensitive = true;
+                description = "OpenAI API key for AI features";
               };
-              
+
               # Public (client-safe) secrets - will be PUBLIC_* in env
-              STRIPE_PUBLISHABLE_KEY = { 
-                required = true; 
-                sensitive = false; 
-                description = "Stripe publishable key (safe for client)"; 
+              STRIPE_PUBLISHABLE_KEY = {
+                required = true;
+                sensitive = false;
+                description = "Stripe publishable key (safe for client)";
               };
-              ANALYTICS_ID = { 
-                required = false; 
-                sensitive = false; 
-                description = "Google Analytics ID"; 
+              ANALYTICS_ID = {
+                required = false;
+                sensitive = false;
+                description = "Google Analytics ID";
               };
             };
-            
+
             # Code generation options
             codegen = {
               typescript = {
@@ -81,7 +81,7 @@
               go.enable = false;
             };
           };
-          
+
           # CI
           ci.github = {
             enable = true;
@@ -92,7 +92,7 @@
           };
         };
       };
-      
+
       flake = {
         # The usual flake attributes can be defined here, including system-
         # agnostic ones like nixosModule and system-enumerating ones, although
@@ -107,7 +107,7 @@
           vscode = ./modules/vscode;
           network = ./modules/network;
         };
-        
+
         # Templates for `nix flake init`
         templates.default = {
           path = ./templates/default;

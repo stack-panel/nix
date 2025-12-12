@@ -14,20 +14,20 @@ AWS infrastructure module - IAM, S3, Lambda, and other AWS resources.
 stackpanel.aws = {
   enable = true;
   region = "us-west-2";
-  
+
   # IAM
   iam = {
     roles = { /* ... */ };
     policies = { /* ... */ };
   };
-  
+
   # S3
   s3 = {
     buckets = {
       assets = { acl = "private"; };
     };
   };
-  
+
   # Lambda
   lambda = {
     functions = {
@@ -37,7 +37,7 @@ stackpanel.aws = {
       };
     };
   };
-  
+
   # Secrets Manager integration
   secretsManager = {
     enable = true;
@@ -48,7 +48,8 @@ stackpanel.aws = {
 
 ## Generated Files
 
-- Terraform/OpenTofu configurations
+- Terraform configurations
+- alchemy.run configurations
 - AWS CDK stacks (optional)
 - GitHub Actions for deployment
 

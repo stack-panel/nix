@@ -30,17 +30,17 @@ SOPS-based secrets management - generates `.sops.yaml` and environment-specific 
 ```nix
 stackpanel.secrets = {
   enable = true;
-  
+
   users = {
     alice = { pubkey = "age1..."; admin = true; };
     bob = { pubkey = "age1..."; };
     charlie = { pubkey = "age1..."; };
   };
-  
+
   environments = {
     dev = { users = [ "alice" "bob" "charlie" ]; };
     staging = { users = [ "alice" "bob" ]; };
-    production = { 
+    production = {
       users = [ "alice" ];
       extraKeys = [ "age1..." ];  # CI system key
     };
@@ -98,3 +98,9 @@ sops exec-env secrets/dev.local.yaml './start.sh'
 ```
 
 Local overrides are gitignored and won't be committed.
+
+## TODO
+
+- [] Auto-sync users from github
+- [] Github action to re-key automatically
+- [] Auto-generate KMS key, add as SOPS recipient (enables AWS SOPS Auth)

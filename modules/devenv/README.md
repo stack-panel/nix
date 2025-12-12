@@ -14,20 +14,20 @@ Development environment integration - wraps devenv as a stackpanel plugin.
 ```nix
 stackpanel.devenv = {
   enable = true;
-  
+
   # Language support
   languages = {
     go.enable = true;
     javascript.enable = true;
     python.enable = true;
   };
-  
+
   # Services
   services = {
     postgres.enable = true;
     redis.enable = true;
   };
-  
+
   # Escape hatch
   extraConfig = { /* raw devenv config */ };
 };

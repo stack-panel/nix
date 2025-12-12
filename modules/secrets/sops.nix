@@ -16,7 +16,7 @@ in {
   options.perSystem = mkPerSystemOption ({ config, pkgs, ... }:
   let
     cfg = config.stackpanel.secrets;
-    
+
     # YAML generation
     yaml = pkgs.formats.yaml {};
     toYaml = attrs: builtins.readFile (yaml.generate "sops.yaml" attrs);
@@ -24,13 +24,13 @@ in {
     # All admins get access to all secrets automatically
     admins = lib.filterAttrs (_: u: u.admin or false) cfg.users;
     adminKeys = lib.mapAttrsToList (_: u: u.pubkey) admins;
-    
+
     # All user keys for "common" environment
     allUserKeys = lib.mapAttrsToList (_: u: u.pubkey) cfg.users;
-    
+
     # AGE key regex (matches age1...)
     isAgeKey = key: lib.hasPrefix "age1" key;
-    
+
     # Get keys for a specific environment
     getEnvKeys = env:
       let
@@ -50,7 +50,7 @@ in {
           age = lib.concatStringsSep "," ageKeys;
         }
       ) cfg.environments;
-      
+
       # Common secrets - all users have access
       commonRule = {
         path_regex = "secrets/common(\\.local)?\\.yaml$";
@@ -63,7 +63,7 @@ in {
     # Placeholder content for new secrets files
     secretsPlaceholder = env: ''
       # ${env} secrets - edit with: sops secrets/${env}.yaml
-      # 
+      #
       # Example structure:
       # database:
       #   password: "your-db-password"
@@ -78,11 +78,11 @@ in {
     secretsGitignore = ''
       # Local secret overrides - never commit
       *.local.yaml
-      
+
       # Decrypted secrets - never commit
       *.dec.yaml
       *.decrypted.yaml
-      
+
       # Editor backups
       *~
       *.swp
@@ -145,8 +145,8 @@ in {
           {
             dev = { users = [ "alice" "bob" "charlie" ]; };
             staging = { users = [ "alice" "bob" ]; };
-            production = { 
-              users = [ "alice" ]; 
+            production = {
+              users = [ "alice" ];
               extraKeys = [ "age1..." ];  # CI key
             };
           }

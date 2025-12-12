@@ -14,14 +14,14 @@ CI/CD workflow generation for GitHub Actions.
 ```nix
 stackpanel.ci.github = {
   enable = true;
-  
+
   # High-level: common CI pattern
   checks = {
     enable = true;
     branches = [ "main" "develop" ];
     commands = [ "nix flake check" "nix build" ];
   };
-  
+
   # Escape hatch: raw workflow definitions
   workflows = {
     deploy = {

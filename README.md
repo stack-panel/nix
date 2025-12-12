@@ -20,13 +20,13 @@ Agent (Go)                    Nix Modules                    Generated Files
 ```nix
 {
   inputs.stackpanel.url = "github:stack-panel/nix";
-  
+
   outputs = inputs@{ flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [ inputs.stackpanel.flakeModules.default ];
-      
-      perSystem = { ... }: 
-      let 
+
+      perSystem = { ... }:
+      let
         teamData = import ./.stackpanel/team.nix;
       in {
         stackpanel = {
@@ -86,6 +86,6 @@ nix run .#secrets-exec -- 'echo $API_KEY'
 ## TODO
 
 - [ ] Template for `nix flake init -t github:stack-panel/nix`
-- [ ] Integration tests  
+- [ ] Integration tests
 - [ ] VSCode module
 - [ ] Devenv integration

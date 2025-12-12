@@ -15,11 +15,11 @@
 
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
 
-      perSystem = { config, pkgs, ... }: 
+      perSystem = { config, pkgs, ... }:
       let
         # Import team data if it exists
-        teamData = 
-          if builtins.pathExists ./.stackpanel/team.nix 
+        teamData =
+          if builtins.pathExists ./.stackpanel/team.nix
           then import ./.stackpanel/team.nix
           else { users = {}; };
       in {

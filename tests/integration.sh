@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Integration test for stackpanel
-# 
+#
 # This test:
 # 1. Creates a temp directory
 # 2. Copies the template
@@ -56,7 +56,7 @@ cat > flake.nix << 'EOF'
 
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
 
-      perSystem = { config, pkgs, ... }: 
+      perSystem = { config, pkgs, ... }:
       let
         teamData = import ./.stackpanel/team.nix;
       in {

@@ -15,11 +15,12 @@ in {
     withHeader = ext: content:
       let
         commentStyle = {
-          nix = "#"; yml = "#"; yaml = "#"; sh = "#"; toml = "#";
+          nix = "#"; yml = "#"; yaml = "#"; sh = "#"; toml = "#"; py = "#";
           json = null;  # JSON doesn't support comments
+          ts = "//"; js = "//"; tsx = "//"; jsx = "//"; go = "//";
           md = "<!--";
         };
-        style = commentStyle.${ext} or "#";
+        style = commentStyle.${ext} or null;  # No header for unknown types
       in
         if style == null then content
         else if style == "<!--" then "<!-- ${header} -->\n${content}"

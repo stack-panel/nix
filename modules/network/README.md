@@ -14,18 +14,18 @@ Internal network infrastructure - Tailscale, DNS, and certificates.
 ```nix
 stackpanel.network = {
   enable = true;
-  
+
   tailscale = {
     enable = true;
     authKeySecret = "TAILSCALE_AUTH_KEY";
   };
-  
+
   dns = {
     enable = true;
     domain = "internal.acme.com";
     provider = "coredns";  # or "caddy"
   };
-  
+
   certificates = {
     enable = true;
     ca = "step";  # smallstep CA
