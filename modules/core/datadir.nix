@@ -22,6 +22,11 @@ in {
         default = ".stackpanel";
         description = "Directory where stackpanel agent stores configuration data";
       };
+      stateDir = lib.mkOption {
+        type = lib.types.str;
+        default = "${cfg.dataDir}/state";
+        description = "Directory for stackpanel agent state/cache data";
+      };
 
       # Helper to import a file from dataDir if it exists
       # Usage: stackpanel.importData "secrets.nix" { users = {}; }

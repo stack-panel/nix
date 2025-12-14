@@ -1,118 +1,78 @@
 {
-  description = "stackpanel";
+  description = "stackpanel - composable Nix modules for full-stack projects";
 
   inputs = {
-    flake-parts.url = "github:hercules-ci/flake-parts";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    devenv.url = "github:cachix/devenv";
+    flake-parts.url = "github:hercules-ci/flake-parts";
   };
 
-  outputs = inputs@{ flake-parts, ... }:
+  nixConfig = {
+    extra-trusted-public-keys = "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=";
+    extra-substituters = "https://devenv.cachix.org";
+  };
+
+  outputs = inputs@{ flake-parts, nixpkgs, self, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
-        # Import our own modules for dogfooding/testing
+        # Import stackpanel modules for this flake's own use
         ./modules
       ];
-      systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
 
-      perSystem = { config, self', inputs', pkgs, system, ... }:
-      let
-        # Import team data from .stackpanel/ (written by agent)
-        teamData = import ./.stackpanel/team.nix;
-      in {
-        # ══════════════════════════════════════════════════════════════
-        # TEST CONFIG - this is how consumers will use stackpanel
-        # ══════════════════════════════════════════════════════════════
-        stackpanel = {
-          # Team synced from GitHub by agent
-          secrets = {
-            enable = true;
-            users = teamData.users;
+      systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
 
-            # Environment-specific access control
-            environments = {
-              dev = { users = [ "alice" "bob" "charlie" ]; };
-              staging = { users = [ "alice" "bob" ]; };
-              production = {
-                users = [ "alice" ];
-                # extraKeys = [ "age1..." ];  # CI system key
-              };
-            };
-
-            # Define secrets schema - generates typed modules
-            schema = {
-              # Sensitive (server-only) secrets
-              DATABASE_URL = {
-                required = true;
-                sensitive = true;
-                description = "PostgreSQL connection string";
-              };
-              STRIPE_SECRET_KEY = {
-                required = true;
-                sensitive = true;
-                description = "Stripe API secret key";
-              };
-              OPENAI_API_KEY = {
-                required = false;  # Optional - nullable in generated types
-                sensitive = true;
-                description = "OpenAI API key for AI features";
-              };
-
-              # Public (client-safe) secrets - will be PUBLIC_* in env
-              STRIPE_PUBLISHABLE_KEY = {
-                required = true;
-                sensitive = false;
-                description = "Stripe publishable key (safe for client)";
-              };
-              ANALYTICS_ID = {
-                required = false;
-                sensitive = false;
-                description = "Google Analytics ID";
-              };
-            };
-
-            # Code generation options
-            codegen = {
-              typescript = {
-                enable = true;
-                path = "packages/env/src/env.ts";
-              };
-              python.enable = false;
-              go.enable = false;
-            };
-          };
-
-          # CI
-          ci.github = {
-            enable = true;
-            checks = {
-              enable = true;
-              commands = [ "nix flake check" ];
-            };
-          };
+      perSystem = { config, pkgs, system, ... }: {
+        # Development shell for working on stackpanel itself
+        devShells.default = pkgs.mkShell {
+          packages = [ pkgs.nil pkgs.nixfmt-classic ];
         };
       };
 
       flake = {
-        # The usual flake attributes can be defined here, including system-
-        # agnostic ones like nixosModule and system-enumerating ones, although
-        # those are more easily expressed in perSystem.
-        # Individual modules for granular imports
+        # ════════════════════════════════════════════════════════════════════
+        # For flake-parts users (flake.nix):
+        #   imports = [ inputs.stackpanel.flakeModules.default ];
+        # ════════════════════════════════════════════════════════════════════
         flakeModules = {
           default = ./modules;
           core = ./modules/core;
           secrets = ./modules/secrets;
-          devenv = ./modules/devenv;
           ci = ./modules/ci;
-          vscode = ./modules/vscode;
           network = ./modules/network;
+          aws = ./modules/aws;
         };
 
-        # Templates for `nix flake init`
-        templates.default = {
-          path = ./templates/default;
-          description = "stackpanel project template";
+        # ════════════════════════════════════════════════════════════════════
+        # For devenv.yaml users (no flake.nix):
+        #   inputs:
+        #     stackpanel:
+        #       url: github:darkmatter/stackpanel/nix
+        #   imports:
+        #     - stackpanel/devenvModules/default
+        # ════════════════════════════════════════════════════════════════════
+        devenvModules = {
+          default = ./modules/devenv;
+          # Individual modules for devenv
+          secrets = ./modules/devenv/secrets.nix;
+          aws = ./modules/devenv/aws.nix;
+          network = ./modules/devenv/network.nix;
         };
+
+        # ════════════════════════════════════════════════════════════════════
+        # Templates
+        # ════════════════════════════════════════════════════════════════════
+        templates = {
+          default = {
+            path = ./templates/default;
+            description = "Basic stackpanel project with flake.nix";
+          };
+          devenv = {
+            path = ./templates/devenv;
+            description = "stackpanel project with devenv.yaml (no flake)";
+          };
+        };
+
+        # Library functions
+        lib = import ./lib { inherit (nixpkgs) lib; };
       };
     };
 }
