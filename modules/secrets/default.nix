@@ -1,4 +1,5 @@
 # Secrets module - SOPS-based secrets management
+# Standalone module - no flake-parts dependency
 #
 # Uses standard SOPS workflow:
 #   sops secrets/dev.yaml

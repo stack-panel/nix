@@ -1,70 +1,66 @@
 # GitHub Actions workflow generation
-{ lib, flake-parts-lib, ... }:
+# Standalone module - no flake-parts dependency
+{ lib, config, pkgs, ... }:
 let
-  inherit (flake-parts-lib) mkPerSystemOption;
+  cfg = config.stackpanel.ci.github;
+
+  # Proper YAML generation
+  yaml = pkgs.formats.yaml {};
+  toYaml = attrs: builtins.readFile (yaml.generate "workflow.yml" attrs);
+
 in {
-  options.perSystem = mkPerSystemOption ({ config, pkgs, ... }:
-  let
-    cfg = config.stackpanel.ci.github;
+  options.stackpanel.ci = {
+    enable = lib.mkEnableOption "CI/CD generation";
 
-    # Proper YAML generation
-    yaml = pkgs.formats.yaml {};
-    toYaml = attrs: builtins.readFile (yaml.generate "workflow.yml" attrs);
+    github = {
+      enable = lib.mkEnableOption "GitHub Actions";
 
-  in {
-    options.stackpanel.ci = {
-      enable = lib.mkEnableOption "CI/CD generation";
+      # Escape hatch: raw workflow definitions
+      workflows = lib.mkOption {
+        type = lib.types.attrsOf lib.types.attrs;
+        default = {};
+        description = "Workflow name -> workflow definition (raw)";
+      };
 
-      github = {
-        enable = lib.mkEnableOption "GitHub Actions";
-
-        # Escape hatch: raw workflow definitions
-        workflows = lib.mkOption {
-          type = lib.types.attrsOf lib.types.attrs;
-          default = {};
-          description = "Workflow name -> workflow definition (raw)";
+      # Higher-level: common patterns
+      checks = {
+        enable = lib.mkEnableOption "standard CI checks workflow";
+        branches = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [ "main" ];
         };
+        commands = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [];
+          example = [ "nix flake check" "nix build" ];
+        };
+      };
+    };
+  };
 
-        # Higher-level: common patterns
-        checks = {
-          enable = lib.mkEnableOption "standard CI checks workflow";
-          branches = lib.mkOption {
-            type = lib.types.listOf lib.types.str;
-            default = [ "main" ];
-          };
-          commands = lib.mkOption {
-            type = lib.types.listOf lib.types.str;
-            default = [];
-            example = [ "nix flake check" "nix build" ];
-          };
+  config = lib.mkIf cfg.enable {
+    # Build workflows from high-level options
+    stackpanel.ci.github.workflows = lib.mkIf cfg.checks.enable {
+      ci = {
+        name = "CI";
+        on = {
+          push.branches = cfg.checks.branches;
+          pull_request.branches = cfg.checks.branches;
+        };
+        jobs.check = {
+          runs-on = "ubuntu-latest";
+          steps = [
+            { uses = "actions/checkout@v4"; }
+            { uses = "cachix/install-nix-action@v30"; }
+          ] ++ map (cmd: { run = cmd; }) cfg.checks.commands;
         };
       };
     };
 
-    config = lib.mkIf cfg.enable {
-      # Build workflows from high-level options
-      stackpanel.ci.github.workflows = lib.mkIf cfg.checks.enable {
-        ci = {
-          name = "CI";
-          on = {
-            push.branches = cfg.checks.branches;
-            pull_request.branches = cfg.checks.branches;
-          };
-          jobs.check = {
-            runs-on = "ubuntu-latest";
-            steps = [
-              { uses = "actions/checkout@v4"; }
-              { uses = "cachix/install-nix-action@v30"; }
-            ] ++ map (cmd: { run = cmd; }) cfg.checks.commands;
-          };
-        };
-      };
-
-      # Push workflow files to core
-      stackpanel.files = lib.mapAttrs' (name: workflow: {
-        name = ".github/workflows/${name}.yml";
-        value = toYaml workflow;
-      }) cfg.workflows;
-    };
-  });
+    # Push workflow files to core
+    stackpanel.files = lib.mapAttrs' (name: workflow: {
+      name = ".github/workflows/${name}.yml";
+      value = toYaml workflow;
+    }) cfg.workflows;
+  };
 }

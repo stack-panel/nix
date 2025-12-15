@@ -19,7 +19,54 @@ Agent (Go)                    Nix Modules                    Generated Files
 
 There are multiple ways to use stackpanel depending on your Nix setup:
 
-### Option 1: flake-parts (Recommended)
+### Option 1: Standalone Modules (Primary)
+
+The core modules are **standalone NixOS-style modules** with no dependency on flake-parts. They work with `lib.evalModules`, NixOS configurations, or any custom module system.
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    stackpanel.url = "github:stack-panel/nix";
+  };
+
+  outputs = { nixpkgs, stackpanel, ... }:
+  let
+    system = "x86_64-linux";
+    pkgs = nixpkgs.legacyPackages.${system};
+    lib = nixpkgs.lib;
+    
+    # Evaluate stackpanel modules standalone
+    stackpanelConfig = lib.evalModules {
+      modules = [
+        stackpanel.nixosModules.default
+        {
+          config._module.args.pkgs = pkgs;
+          config.stackpanel = {
+            enable = true;
+            secrets.enable = true;
+            aws.certAuth = {
+              enable = true;
+              accountId = "123456789";
+              roleName = "my-role";
+              trustAnchorArn = "arn:aws:rolesanywhere:...";
+              profileArn = "arn:aws:rolesanywhere:...";
+            };
+          };
+        }
+      ];
+    };
+  in {
+    packages.${system} = stackpanelConfig.config.stackpanel.packages;
+    
+    devShells.${system}.default = pkgs.mkShell {
+      packages = builtins.attrValues stackpanelConfig.config.stackpanel.packages;
+    };
+  };
+}
+```
+
+### Option 2: flake-parts Integration
 
 For projects using `flake.nix` with flake-parts:
 
@@ -45,7 +92,6 @@ For projects using `flake.nix` with flake-parts:
           secrets = {
             enable = true;
             users = teamData.users;
-            secrets."api-key.age".owners = [ "alice" ];
           };
           ci.github.enable = true;
         };
@@ -56,7 +102,7 @@ For projects using `flake.nix` with flake-parts:
 
 Then: `nix run .#generate`
 
-### Option 2: devenv.yaml (No Flake)
+### Option 3: devenv.yaml (No Flake)
 
 For projects using devenv without a `flake.nix`:
 
@@ -78,30 +124,6 @@ imports:
     enable = true;
     secrets.enable = true;
     aws.certAuth.enable = true;
-  };
-}
-```
-
-### Option 3: Plain Flake (No flake-parts)
-
-For projects using a plain `flake.nix` without flake-parts, import the modules directly:
-
-```nix
-{
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    stackpanel.url = "github:stack-panel/nix";
-  };
-
-  outputs = { nixpkgs, stackpanel, ... }:
-  let
-    system = "x86_64-linux";
-    pkgs = nixpkgs.legacyPackages.${system};
-  in {
-    devShells.${system}.default = pkgs.mkShell {
-      # Use stackpanel lib functions directly
-      packages = [ ];
-    };
   };
 }
 ```
@@ -137,45 +159,111 @@ nix flake init -t github:stack-panel/nix#devenv
 | Module | Status | Description |
 |--------|--------|-------------|
 | `core` | ✅ Working | Base options, file generation, datadir |
-| `secrets` | ✅ Working | Agenix integration, team management, rekey workflow |
+| `secrets` | ✅ Working | SOPS integration, team management |
 | `ci` | ✅ Working | GitHub Actions generation |
-| `devenv` | 🚧 Scaffold | Devenv wrapper |
-| `network` | 🚧 Scaffold | Tailscale, DNS, certificates |
+| `aws` | ✅ Working | AWS Roles Anywhere cert-based auth |
+| `network` | ✅ Working | Step CA certificate management |
+| `theme` | ✅ Working | Starship prompt theming |
 | `container` | 🚧 Scaffold | Dockerfile generation |
-| `aws` | 🚧 Scaffold | AWS infrastructure |
+
+## Architecture
+
+stackpanel uses a **layered architecture** that separates pure logic from module system glue:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        lib/ (Pure Nix)                          │
+│  aws.nix, network.nix, theme.nix                                │
+│  Pure functions that work with any Nix module system            │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+┌──────────────────┐ ┌──────────────────┐ ┌──────────────────────┐
+│ modules/         │ │ flake-parts.nix  │ │ modules/devenv/      │
+│ (Standalone)     │ │ (Wrapper)        │ │ (devenv)             │
+│ Primary modules  │ │ perSystem bridge │ │ devenv.yaml users    │
+│ No dependencies  │ │ for flake-parts  │ │                      │
+└──────────────────┘ └──────────────────┘ └──────────────────────┘
+```
+
+This means:
+- **Standalone first** - Core modules have no flake-parts dependency
+- **Same logic** powers all integration layers
+- **No duplication** - Shared lib contains the actual implementation
+- **Easy to extend** - Add new module systems by wrapping the lib
+
+### Using the Library Directly
+
+For advanced use cases, you can use the library functions directly:
+
+```nix
+{
+  inputs.stackpanel.url = "github:stack-panel/nix";
+  
+  outputs = { nixpkgs, stackpanel, ... }:
+  let
+    pkgs = nixpkgs.legacyPackages.x86_64-linux;
+    lib = nixpkgs.lib;
+    
+    # Get the library with pkgs
+    spLib = stackpanel.lib { inherit pkgs lib; };
+    
+    # Use library functions directly
+    awsScripts = spLib.aws.mkAwsCredScripts {
+      stateDir = ".stackpanel/state/aws";
+      accountId = "123456789";
+      roleName = "my-role";
+      trustAnchorArn = "arn:aws:rolesanywhere:...";
+      profileArn = "arn:aws:rolesanywhere:...";
+    };
+  in {
+    devShells.x86_64-linux.default = pkgs.mkShell {
+      packages = awsScripts.allPackages;
+    };
+  };
+}
+```
 
 ## Commands
 
 ```bash
 nix run .#generate        # Write all managed files
 nix run .#generate-diff   # Preview what would be written
-nix run .#secrets-exec    # Run command with decrypted secrets (like sops exec-env)
 ```
 
 ## Secrets Workflow
 
-stackpanel uses **agenix** (age-based encryption). Unlike sops which stores secrets inline in YAML, agenix uses separate `.age` files.
+stackpanel uses **SOPS** with AGE encryption. 
 
-**Encrypting a secret:**
+**Editing secrets:**
 ```bash
-cd secrets
-agenix -e api-key.age    # Opens $EDITOR, encrypts on save
+sops secrets/dev.yaml        # Edit dev secrets
+sops secrets/production.yaml # Edit production secrets
 ```
 
 **Using secrets in dev:**
 ```bash
-# Option 1: agenix CLI (if you have the private key)
-agenix -d secrets/api-key.age
-
-# Option 2: stackpanel exec-env (sops-style)
-nix run .#secrets-exec -- 'echo $API_KEY'
+# Run command with secrets as env vars
+sops exec-env secrets/dev.yaml './start-server.sh'
 ```
+
+## Flake Outputs
+
+| Output | Description |
+|--------|-------------|
+| `nixosModules.*` | **Primary** - Standalone NixOS-style modules (no flake-parts dependency) |
+| `flakeModules.default` | **Secondary** - flake-parts integration wrapper |
+| `devenvModules.*` | Modules for devenv.yaml users |
+| `lib` | Pure library functions for direct use |
+| `templates.*` | Project templates |
 
 ## TODO
 
 - [x] Template for `nix flake init -t github:stack-panel/nix`
 - [x] Devenv integration (devenvModules)
 - [x] Non-flake compatibility (default.nix, shell.nix)
+- [x] Standalone modules (no flake-parts dependency)
 - [ ] Integration tests
 - [ ] VSCode module
 
@@ -186,91 +274,48 @@ nix run .#secrets-exec -- 'echo $API_KEY'
 |                 File                 |               Why                   |
 |--------------------------------------|-------------------------------------|
 | default.nix                          |  Auto-wraps flake.nix via flake-compat. Any new flake outputs are automatically available.  |
-| shell.nix                            |  Just returns .shellNix from default.nix. No changes needed.
-New options within existing modules	Just add them to the module - they work automatically. |
+| shell.nix                            |  Just returns .shellNix from default.nix. No changes needed. |
+| New options within existing modules  |  Just add them to the module - they work automatically. |
 
 
 **⚠️ Manual Updates Needed**
 
-|                 File                 |               Why                   |
-|--------------------------------------|-------------------------------------|
 | When You...                          | Update These                        |
-| Add a new top-level module (e.g., modules/database/) | Add to flakeModules in flake.nix |
+|--------------------------------------|-------------------------------------|
+| Add a new top-level module (e.g., modules/database/) | Add to nixosModules in flake.nix |
 | Want it to work with devenv.yaml | Also create modules/devenv/<name>.nix and add to devenvModules in flake.nix |
 | Add a new template    | Add to templates in flake.nix and create templates/<name>/ directory |
-
-**Practical Example**
-
-If you add a new modules/docker/ module:
-
-
-```nix
-# In flake.nix, add:
-flakeModules = {
-  # ...existing
-  docker = ./modules/docker;  # ← Add this
-};
-
-# If you also want devenv.yaml support:
-devenvModules = {
-  # ...existing
-  docker = ./modules/devenv/docker.nix;  # ← Add this
-};
-```
 
 ### File Structure
 
 ```
 nix/
-├── flake.nix           # Main flake - exports flakeModules, devenvModules, templates
+├── flake.nix           # Main flake - exports nixosModules, flakeModules, devenvModules, templates, lib
 ├── default.nix         # flake-compat wrapper (auto-wraps flake.nix, no maintenance needed)
 ├── shell.nix           # nix-shell compat (auto-wraps flake.nix, no maintenance needed)
-├── modules/
-│   ├── default.nix     # flake-parts module index
-│   ├── core/           # Core module
-│   ├── secrets/        # Secrets module
-│   ├── ci/             # CI module
-│   ├── network/        # Network module
-│   ├── aws/            # AWS module
+├── lib/                # Pure Nix library (works with any module system)
+│   ├── default.nix     # Library index
+│   ├── aws.nix         # AWS cert-auth utilities
+│   ├── network.nix     # Step CA utilities
+│   ├── theme.nix       # Starship theme utilities
+│   └── starship.toml   # Default starship config
+├── modules/            # Standalone NixOS-style modules (PRIMARY)
+│   ├── default.nix     # Module index
+│   ├── flake-parts.nix # flake-parts wrapper (SECONDARY)
+│   ├── core/           # Core module (file generation)
+│   ├── secrets/        # SOPS secrets module
+│   ├── ci/             # GitHub Actions module
+│   ├── aws/            # AWS cert-auth module
+│   ├── network/        # Step CA module
+│   ├── theme/          # Starship theme module
+│   ├── container/      # Container generation module (WIP)
 │   └── devenv/         # Devenv-specific wrappers
 │       ├── default.nix
 │       ├── secrets.nix
 │       ├── aws.nix
-│       └── network.nix
+│       ├── network.nix
+│       └── theme.nix
 └── templates/
     ├── default/        # flake-parts template
     └── devenv/         # devenv.yaml template
 ```
-
-
-
-
-
-
-### When Adding New Modules
-
-1. **Create the module** in `modules/<name>/` with flake-parts options
-2. **Export in flakeModules** - Add to `flake.nix`:
-   ```nix
-   flakeModules = {
-     # ...existing
-     newmodule = ./modules/newmodule;
-   };
-   ```
-3. **Create devenv wrapper** (optional) - If the module should work with devenv.yaml users:
-   - Create `modules/devenv/<name>.nix` that wraps your options for devenv
-   - Export in `devenvModules` in `flake.nix`
-
-### What Requires NO Maintenance
-
-- **`default.nix`** - Automatically wraps `flake.nix` via flake-compat
-- **`shell.nix`** - Automatically returns the devShell from flake.nix
-- **New options within existing modules** - Just add them to the module
-
-### What Requires Manual Updates
-
-| Change | Files to Update |
-|--------|-----------------|
-| New top-level module | `flake.nix` (flakeModules) |
-| New devenv-compatible module | `flake.nix` (devenvModules), `modules/devenv/<name>.nix` |
-| New template | `flake.nix` (templates), `templates/<name>/` |

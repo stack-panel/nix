@@ -14,8 +14,8 @@
   outputs = inputs@{ flake-parts, nixpkgs, self, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
-        # Import stackpanel modules for this flake's own use
-        ./modules
+        # Import stackpanel flake-parts wrapper for this flake's own use
+        ./modules/flake-parts.nix
       ];
 
       systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
@@ -29,25 +29,67 @@
 
       flake = {
         # ════════════════════════════════════════════════════════════════════
-        # For flake-parts users (flake.nix):
-        #   imports = [ inputs.stackpanel.flakeModules.default ];
+        # STANDALONE MODULES (Primary - no flake-parts dependency)
+        #
+        # For use with lib.evalModules, NixOS configurations, or custom
+        # module systems. These are pure NixOS-style modules.
+        #
+        # Usage with lib.evalModules:
+        #   let
+        #     result = lib.evalModules {
+        #       modules = [
+        #         inputs.stackpanel.nixosModules.default
+        #         { config.stackpanel.enable = true; }
+        #         { config._module.args.pkgs = pkgs; }
+        #       ];
+        #     };
+        #   in result.config.stackpanel.packages
+        #
+        # Or import individual modules:
+        #   modules = [
+        #     inputs.stackpanel.nixosModules.core
+        #     inputs.stackpanel.nixosModules.aws
+        #   ];
         # ════════════════════════════════════════════════════════════════════
-        flakeModules = {
+        nixosModules = {
           default = ./modules;
           core = ./modules/core;
           secrets = ./modules/secrets;
           ci = ./modules/ci;
           network = ./modules/network;
           aws = ./modules/aws;
+          theme = ./modules/theme;
+          container = ./modules/container;
         };
 
         # ════════════════════════════════════════════════════════════════════
+        # FLAKE-PARTS INTEGRATION (Secondary - for flake-parts users)
+        #
+        # For flake-parts users (flake.nix):
+        #   imports = [ inputs.stackpanel.flakeModules.default ];
+        #
+        #   perSystem = { pkgs, ... }: {
+        #     stackpanel.aws.certAuth = { enable = true; ... };
+        #   };
+        # ════════════════════════════════════════════════════════════════════
+        flakeModules = {
+          default = ./modules/flake-parts.nix;
+        };
+
+        # ════════════════════════════════════════════════════════════════════
+        # DEVENV MODULES (for devenv.yaml users)
+        #
         # For devenv.yaml users (no flake.nix):
         #   inputs:
         #     stackpanel:
         #       url: github:darkmatter/stackpanel/nix
         #   imports:
         #     - stackpanel/devenvModules/default
+        #
+        # Or import individual modules:
+        #   imports:
+        #     - stackpanel/devenvModules/aws
+        #     - stackpanel/devenvModules/network
         # ════════════════════════════════════════════════════════════════════
         devenvModules = {
           default = ./modules/devenv;
@@ -55,6 +97,7 @@
           secrets = ./modules/devenv/secrets.nix;
           aws = ./modules/devenv/aws.nix;
           network = ./modules/devenv/network.nix;
+          theme = ./modules/devenv/theme.nix;
         };
 
         # ════════════════════════════════════════════════════════════════════
@@ -71,8 +114,14 @@
           };
         };
 
-        # Library functions
-        lib = import ./lib { inherit (nixpkgs) lib; };
+        # ════════════════════════════════════════════════════════════════════
+        # Library functions (pure Nix, works with any module system)
+        #
+        # Usage:
+        #   let stackpanelLib = inputs.stackpanel.lib { inherit pkgs lib; };
+        #   in stackpanelLib.aws.mkAwsCredScripts { ... }
+        # ════════════════════════════════════════════════════════════════════
+        lib = { pkgs ? null, lib ? nixpkgs.lib }: import ./lib { inherit pkgs lib; };
       };
     };
 }
