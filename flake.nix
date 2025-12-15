@@ -92,7 +92,7 @@
         #     - stackpanel/devenvModules/network
         # ════════════════════════════════════════════════════════════════════
         devenvModules = {
-          default = ./modules/devenv/default.nix;
+          default = ./modules/devenv/devenv.nix;
           # Individual modules for devenv
           secrets = ./modules/devenv/secrets.nix;
           aws = ./modules/devenv/aws.nix;
