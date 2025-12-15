@@ -35,7 +35,7 @@ The core modules are **standalone NixOS-style modules** with no dependency on fl
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
     lib = nixpkgs.lib;
-    
+
     # Evaluate stackpanel modules standalone
     stackpanelConfig = lib.evalModules {
       modules = [
@@ -58,7 +58,7 @@ The core modules are **standalone NixOS-style modules** with no dependency on fl
     };
   in {
     packages.${system} = stackpanelConfig.config.stackpanel.packages;
-    
+
     devShells.${system}.default = pkgs.mkShell {
       packages = builtins.attrValues stackpanelConfig.config.stackpanel.packages;
     };
@@ -200,15 +200,15 @@ For advanced use cases, you can use the library functions directly:
 ```nix
 {
   inputs.stackpanel.url = "github:stack-panel/nix";
-  
+
   outputs = { nixpkgs, stackpanel, ... }:
   let
     pkgs = nixpkgs.legacyPackages.x86_64-linux;
     lib = nixpkgs.lib;
-    
+
     # Get the library with pkgs
     spLib = stackpanel.lib { inherit pkgs lib; };
-    
+
     # Use library functions directly
     awsScripts = spLib.aws.mkAwsCredScripts {
       stateDir = ".stackpanel/state/aws";
@@ -234,7 +234,7 @@ nix run .#generate-diff   # Preview what would be written
 
 ## Secrets Workflow
 
-stackpanel uses **SOPS** with AGE encryption. 
+stackpanel uses **SOPS** with AGE encryption.
 
 **Editing secrets:**
 ```bash

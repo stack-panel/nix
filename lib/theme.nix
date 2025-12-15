@@ -38,7 +38,7 @@
     config = starshipConfig;
     # Required packages
     requiredPackages = [ pkgs.starship ];
-    # All packages together  
+    # All packages together
     allPackages = [ initStarship pkgs.starship ];
     # Shell initialization snippet (for use in shell hooks)
     shellInit = configPath: ''

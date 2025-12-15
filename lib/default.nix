@@ -20,7 +20,7 @@
   aws = if pkgs != null then import ./aws.nix { inherit pkgs lib; } else
     throw "stackpanel.lib.aws requires pkgs to be passed";
 
-  # Network/Step CA utilities  
+  # Network/Step CA utilities
   # Requires pkgs to be passed
   network = if pkgs != null then import ./network.nix { inherit pkgs lib; } else
     throw "stackpanel.lib.network requires pkgs to be passed";
